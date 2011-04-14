@@ -34,7 +34,7 @@ window.onload = function () {
                         && Crafty.randRange(0, 50) > 30
                         && !(i === 1 && j >= 16)
                         && !(i === 23 && j <= 4)) {
-                    var f = Crafty.e("2D, DOM, flower, solid, animate, explodable")
+                    var f = Crafty.e("2D, DOM, flower, solid, Animate, explodable")
                             .attr({ x: i * 16, y: j * 16, z: 1000 })
                             .animate("wind", 0, 1, 3)
                             .animate('wind', 80, -1)
@@ -124,7 +124,7 @@ window.onload = function () {
     Crafty.c('BananaBomb', {
 
         init: function() {
-            this.requires("2D, DOM, animate, Grid, banana, explodable")
+            this.requires("2D, DOM, Animate, Grid, banana, explodable")
                 .animate('explode', 4, 0, 5)
                 .animate('explode', 50, -1)
                 .delay(function() {
@@ -153,11 +153,11 @@ window.onload = function () {
     Crafty.c('BananaFire', {
 
         init: function() {
-            this.requires("2D, DOM, animate, banana, Grid, collision, fire")
+            this.requires("2D, DOM, Animate, banana, Grid, Collision, fire")
                 .animate('fire', 4, 0, 5)
                 .animate('fire', 10, -1)
                 .collision()
-                .onhit('explodable', function(o) {
+                .onHit('explodable', function(o) {
                     for(var i = 0; i < o.length; i++) {
                         o[i].obj.trigger("explode");
                     }
@@ -172,7 +172,7 @@ window.onload = function () {
     Crafty.c('ShadowBananaFire', {
 
         init: function() {
-            this.requires("2D, Grid, empty, collision, ShadowFire")
+            this.requires("2D, Grid, empty, Collision, ShadowFire")
                 .collision()
                 .delay(function() {
                     this.destroy();
@@ -275,7 +275,7 @@ window.onload = function () {
                         }
                     })
                     //don't move into dangerous tiles
-                    .onhit("ShadowFire", function () {
+                    .onHit("ShadowFire", function () {
                         if(this._inShadow)
                             return;
 
@@ -285,9 +285,9 @@ window.onload = function () {
                         mov.left = mov.up = mov.right = mov.down = false;
                     }, function() {
                         this._inShadow = false;
-                    }).onhit("flower", function() {
+                    }).onHit("flower", function() {
                         this.trigger("Dropped");
-                    }).onhit("solid", function () {
+                    }).onHit("solid", function () {
                         // Move unit out of the solid area and stop movement
                         this.snap();
                         this.stop();
@@ -300,7 +300,7 @@ window.onload = function () {
 
 
         //create our player entity with some premade components
-        player = Crafty.e("2D, DOM, player, controls, CustomControls, animate, collision, BombDropper, Grid")
+        player = Crafty.e("2D, DOM, player, controls, CustomControls, Animate, Collision, BombDropper, Grid")
                 .attr({ x: 16, y: 304, z: 1 })
                 .CustomControls(1)
                 .animate("walk_left", 6, 3, 8)
@@ -333,15 +333,15 @@ window.onload = function () {
                     this.stop();
                 })
                 .collision()
-                .onhit("solid", function () {
+                .onHit("solid", function () {
                     this.snap(); // Move unit out of the solid area
                     this.stop();
-                }).onhit("fire", function() {
+                }).onHit("fire", function() {
                     this.destroy();
                 });
 
         //create our player entity with some premade components
-        enemy = Crafty.e("2D, DOM, enemy, AIControls, animate, collision, BombDropper, Grid")
+        enemy = Crafty.e("2D, DOM, enemy, AIControls, Animate, Collision, BombDropper, Grid")
                 .attr({ x: 368, y: 16, z: 2 })
                 .AIControls(1)
                 .animate("walk_left", 6, 3, 8)
@@ -374,7 +374,7 @@ window.onload = function () {
                     this.stop();
                 })
                 .collision()
-                .onhit("fire", function() {
+                .onHit("fire", function() {
                     this.destroy();
                 });
 
