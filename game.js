@@ -1,7 +1,7 @@
 window.onload = function () {
     //start crafty
     Crafty.init(50, 400, 336);
-    Crafty.canvas();
+    //Crafty.canvas();
 
     //turn the sprite map into usable components
     Crafty.sprite(16, "sprite.png", {
@@ -46,7 +46,9 @@ window.onload = function () {
                 //grid of bushes
                 if((i % 2 === 0) && (j % 2 === 0)) {
                     Crafty.e("2D, Grid, DOM, solid, bush1")
-                        .attr({ col: i, row: j, z: 2000});
+                        .attr({z: 2000})
+                        .col(i)
+                        .row(j);
                 }
 
                 //create a fence of bushes
@@ -59,6 +61,24 @@ window.onload = function () {
 
     //the loading screen that will display while our assets load
     Crafty.scene("loading", function () {
+        //swtup websockets
+        
+        client = Stomp.client("ws://localhost:61618")
+        var destination = "/topic/bb";
+        client.connect("", "", function(frame) {
+            console.log("connected: " + frame);
+            
+            Crafty.bind("ws:out", function(m) {
+                client.send(destination, {}, m)
+            })
+            
+            client.subscribe(destination, function(message) {
+                Crafty.trigger("ws:in", message.body)
+                console.log("subscribed: " + message.body);
+            });
+        })
+        
+        
         //load takes an array of assets and a callback when complete
         Crafty.load(["sprite.png"], function () {
             Crafty.scene("main"); //when everything is loaded, run the main scene
@@ -109,14 +129,16 @@ window.onload = function () {
     Crafty.c('BombDropper', {
 
         init: function() {
-            //this component is dependant on functionality in Dropper, sp that component is added
-            this.requires('Dropper')
+            //this component is dependant on functionality in Dropper, so that component is added
+            this.requires('Dropper, Grid')
 
-                //Create the bomb
-                .bind('Dropped', function() {
-                    Crafty.e('BananaBomb')
-                        .attr({ col: this.col, row: this.row, z:100})
-                        .BananaBomb();
+            //Create the bomb
+            .bind('Dropped', function() {
+                Crafty.e('BananaBomb')
+                    .attr({z:100})
+                    .col(this.col())
+                    .row(this.row())
+                    .BananaBomb();
             });
         }
     });
@@ -134,19 +156,19 @@ window.onload = function () {
                     this.destroy();
 
                     //Create fire from the explosion
-                    for(var i = this.col - 2; i < this.col+3; i++)
-                        Crafty.e("BananaFire").attr({ col: i, row: this.row, z:9000 })
-                    for(var i = this.row - 2; i < this.row+3; i++)
-                        Crafty.e("BananaFire").attr({ col: this.col, row: i, z:9000 })
+                    for(var i = this.col() - 2; i < this.col()+3; i++)
+                        Crafty.e("BananaFire").attr({ z:9000 }).col(i).row(this.row())
+                    for(var i = this.row() - 2; i < this.row()+3; i++)
+                        Crafty.e("BananaFire").attr({ z:9000 }).col(this.col()).row(i)
                 });
         },
 
         BananaBomb: function() {
             //Create shadow fire to help the AI
-            for(var i = this.col - 2; i < this.col+3; i++)
-                Crafty.e("ShadowBananaFire").attr({ col: i, row: this.row, z:9000 })
-            for(var i = this.row - 2; i < this.row+3; i++)
-                Crafty.e("ShadowBananaFire").attr({ col: this.col, row: i, z:9000 })
+            for(var i = this.col() - 2; i < this.col()+3; i++)
+                Crafty.e("ShadowBananaFire").attr({ z:9000 }).col(i).row(this.row())
+            for(var i = this.row() - 2; i < this.row()+3; i++)
+                Crafty.e("ShadowBananaFire").attr({ z:9000 }).col(this.col()).row(i)
         }
     });
 
@@ -186,13 +208,30 @@ window.onload = function () {
             if(cellSize) this._cellSize = cellSize;
             return this;
         },
-        init: function() {
-            this.setter('col', function(v) { this.x = this._cellSize * v; }).getter('col', function() { return Math.round(this.x / this._cellSize); })
-                .setter('row', function(v) { this.y = this._cellSize * v; }).getter('row', function() { return Math.round(this.y / this._cellSize); });
+        col: function(col) {
+            if(arguments.length === 1) {
+                this.x = this._cellSize * col;
+                return this;
+            } else {
+                return Math.round(this.x / this._cellSize);
+            }
         },
+        row: function(row) {
+            if(arguments.length === 1) {
+                this.y = this._cellSize * row;
+                return this;
+            } else {
+                return Math.round(this.y / this._cellSize);
+            }
+        },
+        
+//        init: function() {
+//            this.setter('col', function(v) { this.x = this._cellSize * v; }).getter('col', function() { return Math.round(this.x / this._cellSize); })
+//                .setter('row', function(v) { this.y = this._cellSize * v; }).getter('row', function() { return Math.round(this.y / this._cellSize); });
+//        },
         snap: function(){
-            this.col = this.col;
-            this.row = this.row;
+            this.x = Math.round(this.x/this._cellSize) * this._cellSize;
+            this.y = Math.round(this.y/this._cellSize) * this._cellSize;
         }
     });
 
@@ -202,6 +241,7 @@ window.onload = function () {
         Crafty.c('CustomControls', {
             __move: { left: false, right: false, up: false, down: false },
             _speed: 3,
+            _master: false,
 
             //TODO: implement direction through cirkular buffer to allow continuous movement after 2. arrow is released and nicer snap.
             CustomControls: function (speed) {
@@ -212,10 +252,13 @@ window.onload = function () {
                         function () {
                             //move the player in a direction depending on the booleans
                             //only move the player in one direction at a time (up/down/left/right)
-                            if (move.right) this.x += this._speed;
-                            else if (move.left) this.x -= this._speed;
-                            else if (move.up) this.y -= this._speed;
-                            else if (move.down) this.y += this._speed;
+                            if (move.right) { this.x += this._speed; }// Crafty.trigger("ws:out", "r") }
+                            else if (move.left) { this.x -= this._speed;}// Crafty.trigger("ws:out", "l") }
+                            else if (move.up) { this.y -= this._speed; }// Crafty.trigger("ws:out", "u") }
+                            else if (move.down) { this.y += this._speed; }// Crafty.trigger("ws:out", "d") }
+                            else return;
+                            this._master = true;
+                            //Crafty.trigger("ws:out", this.x+"|"+this.y);
 
                         }).bind('keydown',
                         function (e) {
@@ -238,7 +281,26 @@ window.onload = function () {
                             if (e.keyCode === Crafty.keys.DOWN_ARROW)   move.down = false;
                             //move the player to a grid position when it stops
                             this.snap();
+//                            Crafty.trigger("ws:out", "snap");
                         });
+                this.bind("ws:in", function(message) {
+                    if(this._master)
+                        return;
+                    
+                    if(message == "r") this.x += this._speed;
+                    else if(message == "l") this.x -= this._speed;
+                    else if(message == "u") this.y -= this._speed;
+                    else if(message == "d") this.y += this._speed;
+                    else if(message == "snap") this.snap();
+                    
+                    
+                    return;
+                    var x = message.split("|")[0];
+                    var y = message.split("|")[1];
+                    this.x = x;
+                    this.y = y;
+                    console.log("Moves: " + x + " | " + y);
+                })
 
                 return this;
             }
@@ -338,7 +400,17 @@ window.onload = function () {
                     this.stop();
                 }).onHit("fire", function() {
                     this.destroy();
-                });
+                }).bind("Dropped", function() {
+                    Crafty.trigger("ws:out", "bomb");
+                }).bind('ws:in', function(m) {
+                if(!this._master && m == "bomb")
+                Crafty.e('BananaBomb')
+                    .attr({ z:100}).col(this.col()).row(this.row())
+                    .BananaBomb();
+            });
+
+            
+
 
         //create our player entity with some premade components
         enemy = Crafty.e("2D, DOM, enemy, AIControls, Animate, Collision, BombDropper, Grid")
