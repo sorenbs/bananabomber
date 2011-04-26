@@ -1,6 +1,6 @@
 window.onload = function () {
     //start crafty
-    Crafty.init(50, 400, 336);
+    Crafty.init(400, 336);
     //Crafty.canvas();
 
     //turn the sprite map into usable components
