@@ -61,24 +61,6 @@ window.onload = function () {
 
     //the loading screen that will display while our assets load
     Crafty.scene("loading", function () {
-        //swtup websockets
-        
-        client = Stomp.client("ws://localhost:61618")
-        var destination = "/topic/bb";
-        client.connect("", "", function(frame) {
-            console.log("connected: " + frame);
-            
-            Crafty.bind("ws:out", function(m) {
-                client.send(destination, {}, m)
-            })
-            
-            client.subscribe(destination, function(message) {
-                Crafty.trigger("ws:in", message.body)
-                console.log("subscribed: " + message.body);
-            });
-        })
-        
-        
         //load takes an array of assets and a callback when complete
         Crafty.load(["sprite.png"], function () {
             Crafty.scene("main"); //when everything is loaded, run the main scene
@@ -223,160 +205,122 @@ window.onload = function () {
             } else {
                 return Math.round(this.y / this._cellSize);
             }
-        },
-        
-//        init: function() {
-//            this.setter('col', function(v) { this.x = this._cellSize * v; }).getter('col', function() { return Math.round(this.x / this._cellSize); })
-//                .setter('row', function(v) { this.y = this._cellSize * v; }).getter('row', function() { return Math.round(this.y / this._cellSize); });
-//        },
+        },      
         snap: function(){
             this.x = Math.round(this.x/this._cellSize) * this._cellSize;
             this.y = Math.round(this.y/this._cellSize) * this._cellSize;
         }
     });
+    
+    Crafty.c('CustomControls', {
+        __move: { left: false, right: false, up: false, down: false },
+        _speed: 3,
 
-    Crafty.scene("main", function () {
-        generateWorld();
+        //TODO: implement direction through cirkular buffer to allow continuous movement after 2. arrow is released and nicer snap.
+        CustomControls: function (speed) {
+            if (speed) this._speed = speed;
+            var move = this.__move;
 
-        Crafty.c('CustomControls', {
-            __move: { left: false, right: false, up: false, down: false },
-            _speed: 3,
-            _master: false,
-
-            //TODO: implement direction through cirkular buffer to allow continuous movement after 2. arrow is released and nicer snap.
-            CustomControls: function (speed) {
-                if (speed) this._speed = speed;
-                var move = this.__move;
-
-                this.bind('enterframe',
-                        function () {
-                            //move the player in a direction depending on the booleans
-                            //only move the player in one direction at a time (up/down/left/right)
-                            if (move.right) { this.x += this._speed; }// Crafty.trigger("ws:out", "r") }
-                            else if (move.left) { this.x -= this._speed;}// Crafty.trigger("ws:out", "l") }
-                            else if (move.up) { this.y -= this._speed; }// Crafty.trigger("ws:out", "u") }
-                            else if (move.down) { this.y += this._speed; }// Crafty.trigger("ws:out", "d") }
-                            else return;
-                            this._master = true;
-                            //Crafty.trigger("ws:out", this.x+"|"+this.y);
-
-                        }).bind('keydown',
-                        function (e) {
-                            //when an arrow key is pressed clear all previous movement settings
-                            if(e.keyCode === Crafty.keys.RIGHT_ARROW ||e.keyCode === Crafty.keys.LEFT_ARROW || e.keyCode === Crafty.keys.UP_ARROW || e.keyCode === Crafty.keys.DOWN_ARROW){
-                                move.right = move.left = move.down = move.up = false;
-                            }
-
-                            //set direction depending on the arrow key
-                            if (e.keyCode === Crafty.keys.RIGHT_ARROW)  move.right = true;
-                            if (e.keyCode === Crafty.keys.LEFT_ARROW)   move.left = true;
-                            if (e.keyCode === Crafty.keys.UP_ARROW)     move.up = true;
-                            if (e.keyCode === Crafty.keys.DOWN_ARROW)   move.down = true;
-
-                        }).bind('keyup', function (e) {
-                            //when a key is teleased stop moving in that direction
-                            if (e.keyCode === Crafty.keys.RIGHT_ARROW)  move.right = false;
-                            if (e.keyCode === Crafty.keys.LEFT_ARROW)   move.left = false;
-                            if (e.keyCode === Crafty.keys.UP_ARROW)     move.up = false;
-                            if (e.keyCode === Crafty.keys.DOWN_ARROW)   move.down = false;
-                            //move the player to a grid position when it stops
-                            this.snap();
-//                            Crafty.trigger("ws:out", "snap");
-                        });
-                this.bind("ws:in", function(message) {
-                    if(this._master)
-                        return;
-                    
-                    if(message == "r") this.x += this._speed;
-                    else if(message == "l") this.x -= this._speed;
-                    else if(message == "u") this.y -= this._speed;
-                    else if(message == "d") this.y += this._speed;
-                    else if(message == "snap") this.snap();
-                    
-                    
-                    return;
-                    var x = message.split("|")[0];
-                    var y = message.split("|")[1];
-                    this.x = x;
-                    this.y = y;
-                    console.log("Moves: " + x + " | " + y);
-                })
-
-                return this;
-            }
-        });
-
-        Crafty.c('AIControls', {
-            __move: { left: false, right: false, up: false, down: false },
-            _speed: 3,
-            _inShadow: false,
-
-            AIControls: function (speed) {
-                if (speed) this._speed = speed;
-                var mov = this.__move;
-
-                this.bind('enterframe',
+            this.bind('enterframe',
                     function () {
-                        //only move the enemy in one direction at a time (up/down/left/right)
-                        if (mov.right) this.x += this._speed;
-                        else if (mov.left) this.x -= this._speed;
-                        else if (mov.up) this.y -= this._speed;
-                        else if (mov.down) this.y += this._speed;
-
-                        //Decide next move
-                        if(!mov.right && !mov.left && !mov.down && !mov.up) {
-                            var direction = Crafty.randRange(1,4);
-                            if(direction === 1)
-                                mov.left = true;
-                            if(direction === 2)
-                                mov.up = true;
-                            if(direction === 3)
-                                mov.right = true;
-                            if(direction === 4)
-                                mov.down = true;
+                        //move the player in a direction depending on the booleans
+                        //only move the player in one direction at a time (up/down/left/right)
+                        if (move.right) { this.x += this._speed; }
+                        else if (move.left) { this.x -= this._speed;}
+                        else if (move.up) { this.y -= this._speed; }
+                        else if (move.down) { this.y += this._speed; }
+                        
+                    }).bind('keydown',
+                    function (e) {
+                        //when an arrow key is pressed clear all previous movement settings
+                        if(e.keyCode === Crafty.keys.RIGHT_ARROW ||e.keyCode === Crafty.keys.LEFT_ARROW || e.keyCode === Crafty.keys.UP_ARROW || e.keyCode === Crafty.keys.DOWN_ARROW){
+                            move.right = move.left = move.down = move.up = false;
                         }
-                    })
-                    //don't move into dangerous tiles
-                    .onHit("ShadowFire", function () {
-                        if(this._inShadow)
-                            return;
 
-                        this._inShadow = true;
+                        //set direction depending on the arrow key
+                        if (e.keyCode === Crafty.keys.RIGHT_ARROW)  move.right = true;
+                        if (e.keyCode === Crafty.keys.LEFT_ARROW)   move.left = true;
+                        if (e.keyCode === Crafty.keys.UP_ARROW)     move.up = true;
+                        if (e.keyCode === Crafty.keys.DOWN_ARROW)   move.down = true;
+
+                    }).bind('keyup', function (e) {
+                        //when a key is teleased stop moving in that direction
+                        if (e.keyCode === Crafty.keys.RIGHT_ARROW)  move.right = false;
+                        if (e.keyCode === Crafty.keys.LEFT_ARROW)   move.left = false;
+                        if (e.keyCode === Crafty.keys.UP_ARROW)     move.up = false;
+                        if (e.keyCode === Crafty.keys.DOWN_ARROW)   move.down = false;
+                        //move the player to a grid position when it stops
                         this.snap();
-                        this.stop();
-                        mov.left = mov.up = mov.right = mov.down = false;
-                    }, function() {
-                        this._inShadow = false;
-                    }).onHit("flower", function() {
-                        this.trigger("Dropped");
-                    }).onHit("solid", function () {
-                        // Move unit out of the solid area and stop movement
-                        this.snap();
-                        this.stop();
-                        mov.left = mov.up = mov.right = mov.down = false;
                     });
+            return this;
+        }
+    });
 
-                return this;
-            }
-        });
+    Crafty.c('AIControls', {
+        __move: { left: false, right: false, up: false, down: false },
+        _speed: 3,
+        _inShadow: false,
 
+        AIControls: function (speed) {
+            if (speed) this._speed = speed;
+            var mov = this.__move;
 
-        //create our player entity with some premade components
-        player = Crafty.e("2D, DOM, player, controls, CustomControls, Animate, Collision, BombDropper, Grid")
-                .attr({ x: 16, y: 304, z: 1 })
-                .CustomControls(1)
-                .animate("walk_left", 6, 3, 8)
+            this.bind('enterframe',
+                function () {
+                    //only move the enemy in one direction at a time (up/down/left/right)
+                    if (mov.right) this.x += this._speed;
+                    else if (mov.left) this.x -= this._speed;
+                    else if (mov.up) this.y -= this._speed;
+                    else if (mov.down) this.y += this._speed;
+
+                    //Decide next move
+                    if(!mov.right && !mov.left && !mov.down && !mov.up) {
+                        var direction = Crafty.randRange(1,4);
+                        if(direction === 1)
+                            mov.left = true;
+                        if(direction === 2)
+                            mov.up = true;
+                        if(direction === 3)
+                            mov.right = true;
+                        if(direction === 4)
+                            mov.down = true;
+                    }
+                })
+                //don't move into dangerous tiles
+                .onHit("ShadowFire", function () {
+                    if(this._inShadow)
+                        return;
+
+                    this._inShadow = true;
+                    this.snap();
+                    this.stop();
+                    mov.left = mov.up = mov.right = mov.down = false;
+                }, function() {
+                    this._inShadow = false;
+                }).onHit("flower", function() {
+                    this.trigger("Dropped");
+                }).onHit("solid", function () {
+                    // Move unit out of the solid area and stop movement
+                    this.snap();
+                    this.stop();
+                    mov.left = mov.up = mov.right = mov.down = false;
+                });
+
+            return this;
+        }
+    });
+    
+    Crafty.c('Ape', {
+        Ape: function() {
+                this.animate("walk_left", 6, 3, 8)
                 .animate("walk_right", 9, 3, 11)
                 .animate("walk_up", 3, 3, 5)
                 .animate("walk_down", 0, 3, 2)
                 .bind("enterframe",
                     function (e) {
-
                         if (this.__move.left) {
                             if (!this.isPlaying("walk_left"))
-                            {
                                 this.stop().animate("walk_left", 10);
-                            }
                         }
                         if (this.__move.right) {
                             if (!this.isPlaying("walk_right"))
@@ -394,61 +338,31 @@ window.onload = function () {
                 .bind("keyup", function (e) {
                     this.stop();
                 })
-                .collision()
                 .onHit("solid", function () {
                     this.snap(); // Move unit out of the solid area
                     this.stop();
                 }).onHit("fire", function() {
                     this.destroy();
-                }).bind("Dropped", function() {
-                    Crafty.trigger("ws:out", "bomb");
-                }).bind('ws:in', function(m) {
-                if(!this._master && m == "bomb")
-                Crafty.e('BananaBomb')
-                    .attr({ z:100}).col(this.col()).row(this.row())
-                    .BananaBomb();
-            });
+                });
+            return this;
+        }
+    });
 
-            
-
-
+    Crafty.scene("main", function () {
+        generateWorld();
+        
         //create our player entity with some premade components
-        enemy = Crafty.e("2D, DOM, enemy, AIControls, Animate, Collision, BombDropper, Grid")
+        player = Crafty.e("2D, DOM, Ape, player, controls, CustomControls, Animate, Collision, BombDropper, Grid")
+                .attr({ x: 16, y: 304, z: 1 })
+                .CustomControls(1)
+                .Ape();
+
+        //create our enemy entity with some premade components
+        enemy = Crafty.e("2D, DOM, Ape, enemy, AIControls, Animate, Collision, BombDropper, Grid")
                 .attr({ x: 368, y: 16, z: 2 })
                 .AIControls(1)
-                .animate("walk_left", 6, 3, 8)
-                .animate("walk_right", 9, 3, 11)
-                .animate("walk_up", 3, 3, 5)
-                .animate("walk_down", 0, 3, 2)
-                .bind("enterframe",
-                    function (e) {
-
-                        if (this.__move.left) {
-                            if (!this.isPlaying("walk_left"))
-                            {
-                                this.stop().animate("walk_left", 10);
-                            }
-                        }
-                        if (this.__move.right) {
-                            if (!this.isPlaying("walk_right"))
-                                this.stop().animate("walk_right", 10);
-                        }
-                        if (this.__move.up) {
-                            if (!this.isPlaying("walk_up"))
-                                this.stop().animate("walk_up", 10);
-                        }
-                        if (this.__move.down) {
-                            if (!this.isPlaying("walk_down"))
-                                this.stop().animate("walk_down", 10);
-                        }
-                })
-                .bind("keyup", function (e) {
-                    this.stop();
-                })
-                .collision()
-                .onHit("fire", function() {
-                    this.destroy();
-                });
+                .Ape();
+        
 
     });
 };
