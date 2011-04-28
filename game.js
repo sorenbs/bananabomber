@@ -34,7 +34,7 @@ window.onload = function () {
                         && Crafty.randRange(0, 50) > 30
                         && !(i === 1 && j >= 16)
                         && !(i === 23 && j <= 4)) {
-                    var f = Crafty.e("2D, DOM, flower, solid, Animate, explodable")
+                    var f = Crafty.e("2D, DOM, flower, solid, SpriteAnimation, explodable")
                             .attr({ x: i * 16, y: j * 16, z: 1000 })
                             .animate("wind", 0, 1, 3)
                             .animate('wind', 80, -1)
@@ -92,7 +92,7 @@ window.onload = function () {
         },
 
         init: function() {
-            this.bind('keydown', function (e) {
+            this.bind('KeyDown', function (e) {
                 if (e.keyCode === this._key && !this._drop) {
                     this._drop = true;
                     //send event to host entity
@@ -128,7 +128,7 @@ window.onload = function () {
     Crafty.c('BananaBomb', {
 
         init: function() {
-            this.requires("2D, DOM, Animate, Grid, banana, explodable")
+            this.requires("2D, DOM, SpriteAnimation, Grid, banana, explodable")
                 .animate('explode', 4, 0, 5)
                 .animate('explode', 50, -1)
                 .delay(function() {
@@ -157,7 +157,7 @@ window.onload = function () {
     Crafty.c('BananaFire', {
 
         init: function() {
-            this.requires("2D, DOM, Animate, banana, Grid, Collision, fire")
+            this.requires("2D, DOM, SpriteAnimation, banana, Grid, Collision, fire")
                 .animate('fire', 4, 0, 5)
                 .animate('fire', 10, -1)
                 .collision()
@@ -230,7 +230,7 @@ window.onload = function () {
                         else if (move.up) { this.y -= this._speed; }
                         else if (move.down) { this.y += this._speed; }
                         
-                    }).bind('keydown',
+                    }).bind('KeyDown',
                     function (e) {
                         //when an arrow key is pressed clear all previous movement settings
                         if(e.keyCode === Crafty.keys.RIGHT_ARROW ||e.keyCode === Crafty.keys.LEFT_ARROW || e.keyCode === Crafty.keys.UP_ARROW || e.keyCode === Crafty.keys.DOWN_ARROW){
@@ -243,7 +243,7 @@ window.onload = function () {
                         if (e.keyCode === Crafty.keys.UP_ARROW)     move.up = true;
                         if (e.keyCode === Crafty.keys.DOWN_ARROW)   move.down = true;
 
-                    }).bind('keyup', function (e) {
+                    }).bind('KeyUp', function (e) {
                         //when a key is teleased stop moving in that direction
                         if (e.keyCode === Crafty.keys.RIGHT_ARROW)  move.right = false;
                         if (e.keyCode === Crafty.keys.LEFT_ARROW)   move.left = false;
@@ -335,7 +335,7 @@ window.onload = function () {
                                 this.stop().animate("walk_down", 10);
                         }
                 })
-                .bind("keyup", function (e) {
+                .bind("Keyup", function (e) {
                     this.stop();
                 })
                 .onHit("solid", function () {
@@ -352,13 +352,13 @@ window.onload = function () {
         generateWorld();
         
         //create our player entity with some premade components
-        player = Crafty.e("2D, DOM, Ape, player, controls, CustomControls, Animate, Collision, BombDropper, Grid")
+        player = Crafty.e("2D, DOM, Ape, player, Keyboard, CustomControls, SpriteAnimation, Collision, BombDropper, Grid")
                 .attr({ x: 16, y: 304, z: 1 })
                 .CustomControls(1)
                 .Ape();
 
         //create our enemy entity with some premade components
-        enemy = Crafty.e("2D, DOM, Ape, enemy, AIControls, Animate, Collision, BombDropper, Grid")
+        enemy = Crafty.e("2D, DOM, Ape, enemy, AIControls, SpriteAnimation, Collision, BombDropper, Grid")
                 .attr({ x: 368, y: 16, z: 2 })
                 .AIControls(1)
                 .Ape();
