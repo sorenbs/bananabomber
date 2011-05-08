@@ -29,20 +29,6 @@ window.onload = function () {
                 Crafty.e("2D, DOM, grass" + grassType)
                     .attr({ x: i * 16, y: j * 16, z:1 });
 
-                //generate some nice flowers within the boundaries of the outer bushes
-                if (i > 0 && i < 24 && j > 0 && j < 20
-                        && Crafty.randRange(0, 50) > 30
-                        && !(i === 1 && j >= 16)
-                        && !(i === 23 && j <= 4)) {
-                    var f = Crafty.e("2D, DOM, flower, solid, SpriteAnimation, explodable")
-                            .attr({ x: i * 16, y: j * 16, z: 1000 })
-                            .animate("wind", 0, 1, 3)
-                            .animate('wind', 80, -1)
-                            .bind('explode', function() {
-                                this.destroy();
-                            });
-                }
-
                 //grid of bushes
                 if((i % 2 === 0) && (j % 2 === 0)) {
                     Crafty.e("2D, Grid, DOM, solid, bush1")
@@ -55,6 +41,24 @@ window.onload = function () {
                 if(i === 0 || i === 24 || j === 0 || j === 20)
                     Crafty.e("2D, DOM, solid, bush" + Crafty.randRange(1, 2))
                     .attr({ x: i * 16, y: j * 16, z: 2 });
+
+                //generate some nice flowers within the boundaries of the outer bushes
+                if (i > 0 && i < 24 && j > 0 && j < 20
+                        && Crafty.randRange(0, 50) > 30
+                        && !(i === 1 && j >= 16)
+                        && !(i === 23 && j <= 4)) {
+                    var f = Crafty.e("2D, DOM, flower, Collision, solid, SpriteAnimation, explodable")
+                            .attr({ x: i * 16, y: j * 16, z: 1000 })
+                            .animate("wind", 0, 1, 3)
+                            .animate('wind', 80, -1)
+                            .bind('explode', function() {
+                                this.destroy();
+                            })
+                            .collision();
+                    if(f.hit('solid')) {
+                        f.destroy();
+                    }
+                }
             }
         }
     }
@@ -76,27 +80,20 @@ window.onload = function () {
     //automatically play the loading scene
     Crafty.scene("loading");
 
-    /*Please note that this component is a bit over engineered for our purpose. This is because i am an engineer at
-    heart and really enjoy building reusable components. Best practice is to build components just sophisticated enough
-    to meet current requirements and then extend them when new use cases emerge.*/
+    /**@
+    * #Dropper
+    * Triggers Drooped event when SPACE is pressed.
+    */
     Crafty.c('Dropper', {
         _drop: false,
-        _dropType: 'default',
         _key: Crafty.keys.SPACE,
-
-        Dropper: function(dropKey, dropType) {
-            if (dropKey) this._key = dropKey;
-            if(dropType) this._dropType = dropType;
-
-            return this;
-        },
 
         init: function() {
             this.bind('KeyDown', function (e) {
                 if (e.keyCode === this._key && !this._drop) {
                     this._drop = true;
                     //send event to host entity
-                    this.trigger('Dropped', {dropType: this._dropType});
+                    this.trigger('Dropped', {dropType: 'BananaBomb'});
 
                     //in most browsers the keydown event fires very rapidly when a key is pressed down.
                     //having a cooldown of 300ms is more reasonable
@@ -109,19 +106,30 @@ window.onload = function () {
     });
 
     Crafty.c('BombDropper', {
+        _dropped: 0,
+        maxBombs: 2,
 
         init: function() {
+            var dropper = this;
             //this component is dependant on functionality in Dropper, so that component is added
             this.requires('Dropper, Grid')
 
             //Create the bomb
             .bind('Dropped', function() {
-                Crafty.e('BananaBomb')
-                    .attr({z:100})
-                    .col(this.col())
-                    .row(this.row())
-                    .BananaBomb();
-            });
+                    if(dropper._dropped < dropper.maxBombs) {
+                        Crafty.e('BananaBomb')
+                            .attr({z:100})
+                            .col(this.col())
+                            .row(this.row())
+                            .BananaBomb()
+                            .bind('explode', function() {
+                                dropper._dropped--;
+
+                            });
+
+                        dropper._dropped++;
+                    }
+                });
         }
     });
 
@@ -151,6 +159,7 @@ window.onload = function () {
                 Crafty.e("ShadowBananaFire").attr({ z:9000 }).col(i).row(this.row())
             for(var i = this.row() - 2; i < this.row()+3; i++)
                 Crafty.e("ShadowBananaFire").attr({ z:9000 }).col(this.col()).row(i)
+            return this;
         }
     });
 
@@ -257,13 +266,88 @@ window.onload = function () {
     });
 
     Crafty.c('AIControls', {
-        __move: { left: false, right: false, up: false, down: false },
+        _move: 'down',
+        _directions: {0: 'left', 1:'right', 2: 'up', 3: 'down'},
         _speed: 3,
         _inShadow: false,
 
         AIControls: function (speed) {
             if (speed) this._speed = speed;
-            var mov = this.__move;
+
+            //functions to determine if there is a free path in some direction
+            var AIScope = this;
+            var pathTester = Crafty.e('2D, empty, Collision').attr({z:30000}).collision();
+            var PathTest = {
+                left: function() { pathTester.attr({x: AIScope.x-AIScope._speed, y: AIScope.y});
+                    return !(pathTester.hit('solid') || (!AIScope._inShadow && pathTester.hit('ShadowBananaFire')));},
+                right: function() { pathTester.attr({x: AIScope.x+AIScope._speed, y: AIScope.y});
+                    return !(pathTester.hit('solid') || (!AIScope._inShadow && pathTester.hit('ShadowBananaFire')));},
+                up: function() { pathTester.attr({x: AIScope.x, y: AIScope.y-AIScope._speed});
+                    return !(pathTester.hit('solid') || (!AIScope._inShadow && pathTester.hit('ShadowBananaFire')));},
+                down: function() { pathTester.attr({x: AIScope.x, y: AIScope.y+AIScope._speed});
+                    return !(pathTester.hit('solid') || (!AIScope._inShadow && pathTester.hit('ShadowBananaFire')));},
+                none: function() { return false; }
+            };
+
+            function bombWillHit() {
+                pathTester.attr({x: AIScope.x-1, y: AIScope.y});
+                if(pathTester.hit('flower')) { return true; }
+                pathTester.attr({x: AIScope.x+1, y: AIScope.y});
+                if(pathTester.hit('flower')) { return true; }
+                pathTester.attr({x: AIScope.x, y: AIScope.y-1});
+                if(pathTester.hit('flower')) { return true; }
+                pathTester.attr({x: AIScope.x, y: AIScope.y+1});
+                if(pathTester.hit('flower')) { return true; }
+                return false;
+            }
+
+            this.bind('enterframe', function() {
+                var nextDirection = '';
+                if(PathTest[this._move]())
+                {
+                    nextDirection = this._move;
+
+                    //when we are at a crossroad interesting things can happen
+                    if(this.x % 16 < this._speed && this.y % 16 < this._speed) {
+                        //change direction
+                        if(Crafty.randRange(0, 2) === 0) {
+                            if(nextDirection === 'down' || nextDirection === 'up') {
+                                if(PathTest.left()) { nextDirection = 'left' }
+                                else if(PathTest.right()) { nextDirection = 'right' }
+                            }else{
+                                if(PathTest.up()) { nextDirection = 'up' }
+                                else if(PathTest.down()) { nextDirection = 'down' }
+                            }
+                        }
+                        if(bombWillHit() &&
+                                !this._inShadow) {
+                            this.trigger('Dropped');
+                        }
+                    }
+                }else{
+                    this.snap();
+                    nextDirection = this._directions[Crafty.randRange(0,3)];
+                    if(nextDirection === this._move) {
+                        nextDirection = "none"; //we need to think
+                    }
+
+                }
+                this._move = nextDirection;
+
+                if(PathTest[this._move]()) {
+                    if (this._move == "right") this.x += this._speed;
+                    else if (this._move == "left") this.x -= this._speed;
+                    else if (this._move == "up") this.y -= this._speed;
+                    else if (this._move == "down") this.y += this._speed;
+                }
+            })
+            .onHit("ShadowBananaFire", function () {
+                this._inShadow = true;
+            }, function() {
+                this._inShadow = false;
+            });
+
+            /*var mov = this.__move;
 
             this.bind('enterframe',
                 function () {
@@ -305,6 +389,7 @@ window.onload = function () {
                     this.stop();
                     mov.left = mov.up = mov.right = mov.down = false;
                 });
+                */
 
             return this;
         }
@@ -312,35 +397,40 @@ window.onload = function () {
     
     Crafty.c('Ape', {
         Ape: function() {
+                //setup animations
                 this.animate("walk_left", 6, 3, 8)
                 .animate("walk_right", 9, 3, 11)
                 .animate("walk_up", 3, 3, 5)
                 .animate("walk_down", 0, 3, 2)
-                .bind("enterframe",
-                    function (e) {
-                        if (this.__move.left) {
+                //change direction when a direction change event is received
+                .bind("NewDirection",
+                    function (direction) {
+                        if (direction.left) {
                             if (!this.isPlaying("walk_left"))
-                                this.stop().animate("walk_left", 10);
+                                this.stop().animate("walk_left", 10, -1);
                         }
-                        if (this.__move.right) {
+                        if (direction.right) {
                             if (!this.isPlaying("walk_right"))
-                                this.stop().animate("walk_right", 10);
+                                this.stop().animate("walk_right", 10, -1);
                         }
-                        if (this.__move.up) {
+                        if (direction.up) {
                             if (!this.isPlaying("walk_up"))
-                                this.stop().animate("walk_up", 10);
+                                this.stop().animate("walk_up", 10, -1);
                         }
-                        if (this.__move.down) {
+                        if (direction.down) {
                             if (!this.isPlaying("walk_down"))
-                                this.stop().animate("walk_down", 10);
+                                this.stop().animate("walk_down", 10, -1);
+                        }
+                        if(!direction.left && !direction.right && !direction.up && !direction.down) {
+                            this.stop();
                         }
                 })
                 .bind("Keyup", function (e) {
                     this.stop();
                 })
+                // A rudimentary way to prevent the user from passing solid areas
                 .onHit("solid", function () {
-                    this.snap(); // Move unit out of the solid area
-                    this.stop();
+                    this.snap();
                 }).onHit("fire", function() {
                     this.destroy();
                 });
@@ -352,9 +442,10 @@ window.onload = function () {
         generateWorld();
         
         //create our player entity with some premade components
-        player = Crafty.e("2D, DOM, Ape, player, Keyboard, CustomControls, SpriteAnimation, Collision, BombDropper, Grid")
+        player = Crafty.e("2D, DOM, Ape, player, Keyboard, Fourway, SpriteAnimation, Collision, BombDropper, Grid")
                 .attr({ x: 16, y: 304, z: 1 })
-                .CustomControls(1)
+                //.CustomControls(1)
+                .fourway(1)
                 .Ape();
 
         //create our enemy entity with some premade components
