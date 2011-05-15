@@ -405,23 +405,23 @@ window.onload = function () {
                 //change direction when a direction change event is received
                 .bind("NewDirection",
                     function (direction) {
-                        if (direction.left) {
+                        if (direction.x < 0) {
                             if (!this.isPlaying("walk_left"))
                                 this.stop().animate("walk_left", 10, -1);
                         }
-                        if (direction.right) {
+                        if (direction.x > 0) {
                             if (!this.isPlaying("walk_right"))
                                 this.stop().animate("walk_right", 10, -1);
                         }
-                        if (direction.up) {
+                        if (direction.y < 0) {
                             if (!this.isPlaying("walk_up"))
                                 this.stop().animate("walk_up", 10, -1);
                         }
-                        if (direction.down) {
+                        if (direction.y > 0) {
                             if (!this.isPlaying("walk_down"))
                                 this.stop().animate("walk_down", 10, -1);
                         }
-                        if(!direction.left && !direction.right && !direction.up && !direction.down) {
+                        if(!direction.x && !direction.y) {
                             this.stop();
                         }
                 })
@@ -463,17 +463,17 @@ window.onload = function () {
         generateWorld();
         
         //create our player entity with some premade components
-        var player1 = Crafty.e("2D, DOM, Ape, player, Keyboard, LeftControls, SpriteAnimation, Collision, BombDropper, Grid")
+        var player1 = Crafty.e("2D, DOM, Ape, player, LeftControls, SpriteAnimation, Collision, BombDropper, Grid")
                 .attr({ x: 16, y: 304, z: 1 })
-                //.leftControls(1)
+                .leftControls(1)
                 .Ape();
         
         //create our player entity with some premade components
-        var player2 = Crafty.e("2D, DOM, Ape, player, Keyboard, RightControls, SpriteAnimation, Collision, BombDropper, Grid")
+        var player2 = Crafty.e("2D, DOM, Ape, player, RightControls, SpriteAnimation, Collision, BombDropper, Grid")
                 .attr({ x: 368, y: 16, z: 1 })
                 .rightControls(1)
                 .Ape();
-/*
+        /*
         //create our enemy entity with some premade components
         var enemy = Crafty.e("2D, DOM, Ape, enemy, AIControls, SpriteAnimation, Collision, BombDropper, Grid")
                 .attr({ x: 368, y: 16, z: 2 })
