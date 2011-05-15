@@ -425,9 +425,6 @@ window.onload = function () {
                             this.stop();
                         }
                 })
-                .bind("Keyup", function (e) {
-                    this.stop();
-                })
                 // A rudimentary way to prevent the user from passing solid areas
                 .onHit("solid", function () {
                     this.snap();
@@ -437,23 +434,52 @@ window.onload = function () {
             return this;
         }
     });
+    
+    Crafty.c("RightControls", {
+            init: function() {
+                this.requires('Multiway');
+            },
+            
+            rightControls: function(speed) {
+                this.multiway(speed, {UP_ARROW: -90, DOWN_ARROW: 90, RIGHT_ARROW: 0, LEFT_ARROW: 180})
+                return this;
+            }
+            
+        });
+        
+        Crafty.c("LeftControls", {
+            init: function() {
+                this.requires('Multiway');
+            },
+            
+            leftControls: function(speed) {
+                this.multiway(speed, {W: -90, S: 90, D: 0, A: 180})
+                return this;
+            }
+            
+        });
 
     Crafty.scene("main", function () {
         generateWorld();
         
         //create our player entity with some premade components
-        player = Crafty.e("2D, DOM, Ape, player, Keyboard, Fourway, SpriteAnimation, Collision, BombDropper, Grid")
+        var player1 = Crafty.e("2D, DOM, Ape, player, Keyboard, LeftControls, SpriteAnimation, Collision, BombDropper, Grid")
                 .attr({ x: 16, y: 304, z: 1 })
-                //.CustomControls(1)
-                .fourway(1)
+                //.leftControls(1)
                 .Ape();
-
+        
+        //create our player entity with some premade components
+        var player2 = Crafty.e("2D, DOM, Ape, player, Keyboard, RightControls, SpriteAnimation, Collision, BombDropper, Grid")
+                .attr({ x: 368, y: 16, z: 1 })
+                .rightControls(1)
+                .Ape();
+/*
         //create our enemy entity with some premade components
-        enemy = Crafty.e("2D, DOM, Ape, enemy, AIControls, SpriteAnimation, Collision, BombDropper, Grid")
+        var enemy = Crafty.e("2D, DOM, Ape, enemy, AIControls, SpriteAnimation, Collision, BombDropper, Grid")
                 .attr({ x: 368, y: 16, z: 2 })
                 .AIControls(1)
                 .Ape();
         
-
+*/
     });
 };
