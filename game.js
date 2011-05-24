@@ -17,7 +17,29 @@ window.onload = function () {
         banana: [4, 0],
         empty: [4, 0]
     });
-
+    /*
+    function deepCopy(obj) {
+                    var newObj = (obj instanceof Array) ? [] : {};
+                    for (i in obj) {
+                        if (i == 'componentStore') continue;
+                        if(!obj.hasOwnProperty(i)) continue;
+                        if (obj[i] && typeof obj[i] == "object") {
+                            newObj[i] = deepCopy(obj[i]);
+                        } else newObj[i] = obj[i]
+                    }
+                    return newObj;
+                };
+                
+    var a = {
+        e: function() {
+            return "z";
+        }
+    }
+    var b = deepCopy(a);
+    
+    console.log(a.e());
+    console.log("e" in b);
+    */
     //method to generate the map
     function generateWorld() {
         //loop through all tiles
@@ -28,13 +50,10 @@ window.onload = function () {
                 grassType = Crafty.randRange(1, 4);
                 Crafty.e("2D, DOM, grass" + grassType)
                     .attr({ x: i * 16, y: j * 16, z:1 });
-
                 //grid of bushes
                 if((i % 2 === 0) && (j % 2 === 0)) {
-                    Crafty.e("2D, Grid, DOM, solid, bush1")
-                        .attr({z: 2000})
-                        .col(i)
-                        .row(j);
+                    Crafty.e("2D, DOM, solid, bush1")
+                        .attr({x: i * 16, y: j * 16, z: 2000})
                 }
 
                 //create a fence of bushes
@@ -80,56 +99,39 @@ window.onload = function () {
     //automatically play the loading scene
     Crafty.scene("loading");
 
-    /**@
-    * #Dropper
-    * Triggers Drooped event when SPACE is pressed.
-    */
-    Crafty.c('Dropper', {
-        _drop: false,
-        _key: Crafty.keys.SPACE,
-
-        init: function() {
-            this.bind('KeyDown', function (e) {
-                if (e.keyCode === this._key && !this._drop) {
-                    this._drop = true;
-                    //send event to host entity
-                    this.trigger('Dropped', {dropType: 'BananaBomb'});
-
-                    //in most browsers the keydown event fires very rapidly when a key is pressed down.
-                    //having a cooldown of 300ms is more reasonable
-                    this.delay(function() {
-                        this._drop = false;
-                    }, 300);
-                }
-            });
-        }
-    });
 
     Crafty.c('BombDropper', {
         _dropped: 0,
         maxBombs: 2,
+        _key: Crafty.keys.SPACE,
 
         init: function() {
             var dropper = this;
-            //this component is dependant on functionality in Dropper, so that component is added
-            this.requires('Dropper, Grid')
+            this.requires('Grid')
 
             //Create the bomb
-            .bind('Dropped', function() {
-                    if(dropper._dropped < dropper.maxBombs) {
-                        Crafty.e('BananaBomb')
-                            .attr({z:100})
-                            .col(this.col())
-                            .row(this.row())
-                            .BananaBomb()
-                            .bind('explode', function() {
-                                dropper._dropped--;
+            .bind('KeyDown', function(e) {
+                if (e.key !== this._key) {
+                    return;
+                }
+                
+                if(this._dropped < this.maxBombs) {
+                    Crafty.e('BananaBomb')
+                        .attr({z:100})
+                        .col(this.col())
+                        .row(this.row())
+                        .BananaBomb()
+                        .bind('explode', function() {
+                            dropper._dropped--;
+                        });
 
-                            });
-
-                        dropper._dropped++;
-                    }
-                });
+                    this._dropped++;
+                }
+            });
+        },
+        bombDropper: function(key) {
+            this._key = key;
+            return this;
         }
     });
 
@@ -221,50 +223,6 @@ window.onload = function () {
         }
     });
     
-    Crafty.c('CustomControls', {
-        __move: { left: false, right: false, up: false, down: false },
-        _speed: 3,
-
-        //TODO: implement direction through cirkular buffer to allow continuous movement after 2. arrow is released and nicer snap.
-        CustomControls: function (speed) {
-            if (speed) this._speed = speed;
-            var move = this.__move;
-
-            this.bind('enterframe',
-                    function () {
-                        //move the player in a direction depending on the booleans
-                        //only move the player in one direction at a time (up/down/left/right)
-                        if (move.right) { this.x += this._speed; }
-                        else if (move.left) { this.x -= this._speed;}
-                        else if (move.up) { this.y -= this._speed; }
-                        else if (move.down) { this.y += this._speed; }
-                        
-                    }).bind('KeyDown',
-                    function (e) {
-                        //when an arrow key is pressed clear all previous movement settings
-                        if(e.keyCode === Crafty.keys.RIGHT_ARROW ||e.keyCode === Crafty.keys.LEFT_ARROW || e.keyCode === Crafty.keys.UP_ARROW || e.keyCode === Crafty.keys.DOWN_ARROW){
-                            move.right = move.left = move.down = move.up = false;
-                        }
-
-                        //set direction depending on the arrow key
-                        if (e.keyCode === Crafty.keys.RIGHT_ARROW)  move.right = true;
-                        if (e.keyCode === Crafty.keys.LEFT_ARROW)   move.left = true;
-                        if (e.keyCode === Crafty.keys.UP_ARROW)     move.up = true;
-                        if (e.keyCode === Crafty.keys.DOWN_ARROW)   move.down = true;
-
-                    }).bind('KeyUp', function (e) {
-                        //when a key is teleased stop moving in that direction
-                        if (e.keyCode === Crafty.keys.RIGHT_ARROW)  move.right = false;
-                        if (e.keyCode === Crafty.keys.LEFT_ARROW)   move.left = false;
-                        if (e.keyCode === Crafty.keys.UP_ARROW)     move.up = false;
-                        if (e.keyCode === Crafty.keys.DOWN_ARROW)   move.down = false;
-                        //move the player to a grid position when it stops
-                        this.snap();
-                    });
-            return this;
-        }
-    });
-
     Crafty.c('AIControls', {
         _move: 'down',
         _directions: {0: 'left', 1:'right', 2: 'up', 3: 'down'},
@@ -347,50 +305,6 @@ window.onload = function () {
                 this._inShadow = false;
             });
 
-            /*var mov = this.__move;
-
-            this.bind('enterframe',
-                function () {
-                    //only move the enemy in one direction at a time (up/down/left/right)
-                    if (mov.right) this.x += this._speed;
-                    else if (mov.left) this.x -= this._speed;
-                    else if (mov.up) this.y -= this._speed;
-                    else if (mov.down) this.y += this._speed;
-
-                    //Decide next move
-                    if(!mov.right && !mov.left && !mov.down && !mov.up) {
-                        var direction = Crafty.randRange(1,4);
-                        if(direction === 1)
-                            mov.left = true;
-                        if(direction === 2)
-                            mov.up = true;
-                        if(direction === 3)
-                            mov.right = true;
-                        if(direction === 4)
-                            mov.down = true;
-                    }
-                })
-                //don't move into dangerous tiles
-                .onHit("ShadowFire", function () {
-                    if(this._inShadow)
-                        return;
-
-                    this._inShadow = true;
-                    this.snap();
-                    this.stop();
-                    mov.left = mov.up = mov.right = mov.down = false;
-                }, function() {
-                    this._inShadow = false;
-                }).onHit("flower", function() {
-                    this.trigger("Dropped");
-                }).onHit("solid", function () {
-                    // Move unit out of the solid area and stop movement
-                    this.snap();
-                    this.stop();
-                    mov.left = mov.up = mov.right = mov.down = false;
-                });
-                */
-
             return this;
         }
     });
@@ -398,7 +312,8 @@ window.onload = function () {
     Crafty.c('Ape', {
         Ape: function() {
                 //setup animations
-                this.animate("walk_left", 6, 3, 8)
+                this.requires("SpriteAnimation, Collision")
+                .animate("walk_left", 6, 3, 8)
                 .animate("walk_right", 9, 3, 11)
                 .animate("walk_up", 3, 3, 5)
                 .animate("walk_down", 0, 3, 2)
@@ -426,8 +341,10 @@ window.onload = function () {
                         }
                 })
                 // A rudimentary way to prevent the user from passing solid areas
-                .onHit("solid", function () {
-                    this.snap();
+                .bind('Moved', function(from) {
+                    if(this.hit('solid')){
+                        this.attr({x: from.x, y:from.y});
+                    }
                 }).onHit("fire", function() {
                     this.destroy();
                 });
@@ -436,34 +353,34 @@ window.onload = function () {
     });
     
     Crafty.c("RightControls", {
-            init: function() {
-                this.requires('Multiway');
-            },
-            
-            rightControls: function(speed) {
-                this.multiway(speed, {UP_ARROW: -90, DOWN_ARROW: 90, RIGHT_ARROW: 0, LEFT_ARROW: 180})
-                return this;
-            }
-            
-        });
+        init: function() {
+            this.requires('Multiway');
+        },
         
-        Crafty.c("LeftControls", {
-            init: function() {
-                this.requires('Multiway');
-            },
-            
-            leftControls: function(speed) {
-                this.multiway(speed, {W: -90, S: 90, D: 0, A: 180})
-                return this;
-            }
-            
-        });
+        rightControls: function(speed) {
+            this.multiway(speed, {UP_ARROW: -90, DOWN_ARROW: 90, RIGHT_ARROW: 0, LEFT_ARROW: 180})
+            return this;
+        }
+        
+    });
+        
+    Crafty.c("LeftControls", {
+        init: function() {
+            this.requires('Multiway');
+        },
+        
+        leftControls: function(speed) {
+            this.multiway(speed, {W: -90, S: 90, D: 0, A: 180})
+            return this;
+        }
+        
+    });
 
     Crafty.scene("main", function () {
         generateWorld();
         
         //create our player entity with some premade components
-        var player1 = Crafty.e("2D, DOM, Ape, player, LeftControls, SpriteAnimation, Collision, BombDropper, Grid")
+        var player1 = Crafty.e("2D, DOM, Ape, player, LeftControls, BombDropper")
                 .attr({ x: 16, y: 304, z: 1 })
                 .leftControls(1)
                 .Ape();
@@ -472,6 +389,7 @@ window.onload = function () {
         var player2 = Crafty.e("2D, DOM, Ape, player, RightControls, SpriteAnimation, Collision, BombDropper, Grid")
                 .attr({ x: 368, y: 16, z: 1 })
                 .rightControls(1)
+                .bombDropper(Crafty.keys.ENTER)
                 .Ape();
         /*
         //create our enemy entity with some premade components
