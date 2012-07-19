@@ -47,7 +47,7 @@ window.onload = function () {
             for (var j = 0; j < 21; j++) {
 
                 //place grass on all tiles
-                grassType = Crafty.randRange(1, 4);
+                grassType = Crafty.math.randomInt(1, 4);
                 Crafty.e("2D, DOM, grass" + grassType)
                     .attr({ x: i * 16, y: j * 16, z:1 });
                 //grid of bushes
@@ -58,12 +58,12 @@ window.onload = function () {
 
                 //create a fence of bushes
                 if(i === 0 || i === 24 || j === 0 || j === 20)
-                    Crafty.e("2D, DOM, solid, bush" + Crafty.randRange(1, 2))
+                    Crafty.e("2D, DOM, solid, bush" + Crafty.math.randomInt(1, 2))
                     .attr({ x: i * 16, y: j * 16, z: 2 });
 
                 //generate some nice flowers within the boundaries of the outer bushes
                 if (i > 0 && i < 24 && j > 0 && j < 20
-                        && Crafty.randRange(0, 50) > 30
+                        && Crafty.math.randomInt(0, 50) > 30
                         && !(i === 1 && j >= 16)
                         && !(i === 23 && j <= 4)) {
                     var f = Crafty.e("2D, DOM, flower, Collision, solid, SpriteAnimation, explodable")
@@ -141,7 +141,7 @@ window.onload = function () {
             this.requires("2D, DOM, SpriteAnimation, Grid, banana, explodable")
                 .animate('explode', 4, 0, 5)
                 .animate('explode', 50, -1)
-                .delay(function() {
+                .timeout(function() {
                     this.trigger("explode");
                 }, 4000)
                 .bind('explode', function() {
@@ -177,7 +177,7 @@ window.onload = function () {
                         o[i].obj.trigger("explode");
                     }
                 })
-                .delay(function() {
+                .timeout(function() {
                     this.destroy();
                 }, 2000);
         }
@@ -189,7 +189,7 @@ window.onload = function () {
         init: function() {
             this.requires("2D, Grid, empty, Collision, ShadowFire")
                 .collision()
-                .delay(function() {
+                .timeout(function() {
                     this.destroy();
                 }, 6100);
         }
@@ -268,7 +268,7 @@ window.onload = function () {
                     //when we are at a crossroad interesting things can happen
                     if(this.x % 16 < this._speed && this.y % 16 < this._speed) {
                         //change direction
-                        if(Crafty.randRange(0, 2) === 0) {
+                        if(Crafty.math.randomInt(0, 2) === 0) {
                             if(nextDirection === 'down' || nextDirection === 'up') {
                                 if(PathTest.left()) { nextDirection = 'left' }
                                 else if(PathTest.right()) { nextDirection = 'right' }
@@ -284,7 +284,7 @@ window.onload = function () {
                     }
                 }else{
                     this.snap();
-                    nextDirection = this._directions[Crafty.randRange(0,3)];
+                    nextDirection = this._directions[Crafty.math.randomInt(0,3)];
                     if(nextDirection === this._move) {
                         nextDirection = "none"; //we need to think
                     }
